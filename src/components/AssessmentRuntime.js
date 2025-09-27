@@ -12,39 +12,34 @@ const AssessmentRuntime = () => {
   const [conditionalQuestions, setConditionalQuestions] = useState({});
 
   const { assessment, loading, error } = useAssessment(jobId);
-  
-  const { register, handleSubmit, watch, formState: { errors }, setValue, getValues } = useForm();
 
+  const { register, handleSubmit, watch, formState: { errors }, getValues } = useForm();
   const watchedValues = watch();
 
   // Handle conditional logic
   useEffect(() => {
-    if (!assessment || !assessment.sections) return;
+    if (!assessment?.sections) return;
 
     const newConditionalQuestions = {};
-    
+
     assessment.sections.forEach(section => {
       section.questions.forEach(question => {
         if (question.conditional) {
           const { dependsOn, condition, value } = question.conditional;
           const dependentValue = getValues(dependsOn);
-          
+
           let shouldShow = false;
-          if (condition === 'equals') {
-            shouldShow = dependentValue === value;
-          } else if (condition === 'not_equals') {
-            shouldShow = dependentValue !== value;
-          } else if (condition === 'contains') {
-            shouldShow = Array.isArray(dependentValue) && dependentValue.includes(value);
-          }
-          
+          if (condition === 'equals') shouldShow = dependentValue === value;
+          else if (condition === 'not_equals') shouldShow = dependentValue !== value;
+          else if (condition === 'contains') shouldShow = Array.isArray(dependentValue) && dependentValue.includes(value);
+
           newConditionalQuestions[question.id] = shouldShow;
         } else {
           newConditionalQuestions[question.id] = true;
         }
       });
     });
-    
+
     setConditionalQuestions(newConditionalQuestions);
   }, [watchedValues, assessment, getValues]);
 
@@ -55,11 +50,9 @@ const AssessmentRuntime = () => {
     try {
       const response = await fetch(`/api/assessments/${jobId}/submit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          candidateId: 1, // In a real app, this would come from auth
+          candidateId: 1, // Replace with actual auth
           responses: data
         }),
       });
@@ -86,18 +79,12 @@ const AssessmentRuntime = () => {
     if (question.type === 'numeric' && value) {
       const numValue = parseFloat(value);
       if (isNaN(numValue)) return 'Please enter a valid number';
-      if (question.min !== undefined && numValue < question.min) {
-        return `Value must be at least ${question.min}`;
-      }
-      if (question.max !== undefined && numValue > question.max) {
-        return `Value must be at most ${question.max}`;
-      }
+      if (question.min !== undefined && numValue < question.min) return `Value must be at least ${question.min}`;
+      if (question.max !== undefined && numValue > question.max) return `Value must be at most ${question.max}`;
     }
 
-    if ((question.type === 'short-text' || question.type === 'long-text') && value) {
-      if (question.maxLength && value.length > question.maxLength) {
-        return `Text must be no more than ${question.maxLength} characters`;
-      }
+    if ((question.type === 'short-text' || question.type === 'long-text') && value && question.maxLength && value.length > question.maxLength) {
+      return `Text must be no more than ${question.maxLength} characters`;
     }
 
     return true;
@@ -111,25 +98,15 @@ const AssessmentRuntime = () => {
 
     return (
       <div key={question.id} style={{ marginBottom: '1.5rem' }}>
-        <label style={{ 
-          display: 'block', 
-          fontSize: '1rem', 
-          fontWeight: '500', 
-          color: '#374151',
-          marginBottom: '0.5rem'
-        }}>
-          {question.text}
-          {question.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
+        <label style={{ display: 'block', fontSize: '1rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+          {question.text}{question.required && <span style={{ color: '#ef4444', marginLeft: '0.25rem' }}>*</span>}
         </label>
 
         {question.type === 'short-text' && (
           <input
             type="text"
             className={`form-input ${error ? 'border-red-500' : ''}`}
-            {...register(fieldName, {
-              required: question.required,
-              validate: (value) => validateField(question, value)
-            })}
+            {...register(fieldName, { required: question.required, validate: value => validateField(question, value) })}
             placeholder="Enter your answer..."
           />
         )}
@@ -137,10 +114,7 @@ const AssessmentRuntime = () => {
         {question.type === 'long-text' && (
           <textarea
             className={`form-input form-textarea ${error ? 'border-red-500' : ''}`}
-            {...register(fieldName, {
-              required: question.required,
-              validate: (value) => validateField(question, value)
-            })}
+            {...register(fieldName, { required: question.required, validate: value => validateField(question, value) })}
             placeholder="Enter your answer..."
             rows={4}
           />
@@ -150,10 +124,7 @@ const AssessmentRuntime = () => {
           <input
             type="number"
             className={`form-input ${error ? 'border-red-500' : ''}`}
-            {...register(fieldName, {
-              required: question.required,
-              validate: (value) => validateField(question, value)
-            })}
+            {...register(fieldName, { required: question.required, validate: value => validateField(question, value) })}
             placeholder="Enter a number..."
             min={question.min}
             max={question.max}
@@ -162,15 +133,12 @@ const AssessmentRuntime = () => {
 
         {question.type === 'single-choice' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {question.options?.map((option, optionIndex) => (
+            {question.options?.map(option => (
               <label key={option.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="radio"
                   value={option.value}
-                  {...register(fieldName, {
-                    required: question.required,
-                    validate: (value) => validateField(question, value)
-                  })}
+                  {...register(fieldName, { required: question.required, validate: value => validateField(question, value) })}
                 />
                 <span>{option.text}</span>
               </label>
@@ -180,14 +148,12 @@ const AssessmentRuntime = () => {
 
         {question.type === 'multi-choice' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {question.options?.map((option, optionIndex) => (
+            {question.options?.map(option => (
               <label key={option.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="checkbox"
                   value={option.value}
-                  {...register(fieldName, {
-                    validate: (value) => validateField(question, value)
-                  })}
+                  {...register(fieldName, { validate: value => validateField(question, value) })}
                 />
                 <span>{option.text}</span>
               </label>
@@ -196,42 +162,22 @@ const AssessmentRuntime = () => {
         )}
 
         {question.type === 'file-upload' && (
-          <div style={{ 
-            border: '2px dashed #d1d5db',
-            borderRadius: '0.5rem',
-            padding: '2rem',
-            textAlign: 'center',
-            backgroundColor: '#f9fafb'
-          }}>
+          <div style={{ border: '2px dashed #d1d5db', borderRadius: '0.5rem', padding: '2rem', textAlign: 'center', backgroundColor: '#f9fafb' }}>
             <input
               type="file"
-              {...register(fieldName, {
-                required: question.required,
-                validate: (value) => validateField(question, value)
-              })}
+              {...register(fieldName, { required: question.required, validate: value => validateField(question, value) })}
               style={{ display: 'none' }}
               id={`file-${fieldName}`}
             />
-            <label 
-              htmlFor={`file-${fieldName}`}
-              style={{ 
-                cursor: 'pointer',
-                display: 'block',
-                color: '#6b7280'
-              }}
-            >
+            <label htmlFor={`file-${fieldName}`} style={{ cursor: 'pointer', display: 'block', color: '#6b7280' }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📁</div>
               <div>Click to upload file or drag and drop</div>
-              <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                PDF, DOC, DOCX up to 10MB
-              </div>
+              <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>PDF, DOC, DOCX up to 10MB</div>
             </label>
           </div>
         )}
 
-        {error && (
-          <div className="error-message">{error}</div>
-        )}
+        {error && <div className="error-message">{error}</div>}
       </div>
     );
   };
@@ -251,11 +197,7 @@ const AssessmentRuntime = () => {
     return (
       <div className="container">
         <div className="page-header">
-          <button 
-            onClick={() => navigate(`/jobs/${jobId}`)} 
-            className="btn btn-outline" 
-            style={{ marginBottom: '1rem' }}
-          >
+          <button onClick={() => navigate(`/jobs/${jobId}`)} className="btn btn-outline" style={{ marginBottom: '1rem' }}>
             ← Back to Job
           </button>
           <h1 className="page-title">Assessment Not Found</h1>
@@ -268,11 +210,7 @@ const AssessmentRuntime = () => {
   return (
     <div className="container">
       <div className="page-header">
-        <button 
-          onClick={() => navigate(`/jobs/${jobId}`)} 
-          className="btn btn-outline" 
-          style={{ marginBottom: '1rem' }}
-        >
+        <button onClick={() => navigate(`/jobs/${jobId}`)} className="btn btn-outline" style={{ marginBottom: '1rem' }}>
           ← Back to Job
         </button>
         <h1 className="page-title">{assessment.title}</h1>
@@ -284,94 +222,49 @@ const AssessmentRuntime = () => {
           <div className="lg:col-span-2">
             {assessment.sections.map((section, sectionIndex) => (
               <div key={section.id} className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '600', 
-                  marginBottom: '0.5rem',
-                  color: '#1e293b'
-                }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#1e293b' }}>
                   Section {sectionIndex + 1}: {section.title}
                 </h3>
-                
+
                 {section.description && (
-                  <p style={{ 
-                    color: '#6b7280', 
-                    marginBottom: '1.5rem',
-                    fontSize: '0.875rem'
-                  }}>
+                  <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
                     {section.description}
                   </p>
                 )}
 
-                {section.questions.map((question, questionIndex) => 
-                  renderQuestion(question, sectionIndex, questionIndex)
-                )}
+                {section.questions.map((question, questionIndex) => renderQuestion(question, sectionIndex, questionIndex))}
               </div>
             ))}
 
             {submitError && (
-              <div style={{ 
-                backgroundColor: '#fee2e2', 
-                color: '#991b1b', 
-                padding: '0.75rem', 
-                borderRadius: '0.375rem',
-                marginBottom: '1.5rem',
-                fontSize: '0.875rem'
-              }}>
+              <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '0.375rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
                 {submitError}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => navigate(`/jobs/${jobId}`)}
-                className="btn btn-outline"
-                disabled={isSubmitting}
-              >
+              <button type="button" onClick={() => navigate(`/jobs/${jobId}`)} className="btn btn-outline" disabled={isSubmitting}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isSubmitting}
-              >
+              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <div className="spinner" style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }}></div>
                     Submitting...
                   </>
-                ) : (
-                  'Submit Assessment'
-                )}
+                ) : 'Submit Assessment'}
               </button>
             </div>
           </div>
 
           <div>
             <div className="card" style={{ padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-                Assessment Progress
-              </h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assessment Progress</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {assessment.sections.map((section, index) => (
-                  <div key={section.id} style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    padding: '0.5rem',
-                    backgroundColor: index === currentSection ? '#dbeafe' : '#f8fafc',
-                    borderRadius: '0.375rem'
-                  }}>
-                    <div style={{ 
-                      width: '8px', 
-                      height: '8px', 
-                      borderRadius: '50%',
-                      backgroundColor: index === currentSection ? '#3b82f6' : '#6b7280'
-                    }}></div>
-                    <span style={{ fontSize: '0.875rem' }}>
-                      Section {index + 1}: {section.title}
-                    </span>
+                  <div key={section.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', backgroundColor: index === currentSection ? '#dbeafe' : '#f8fafc', borderRadius: '0.375rem' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: index === currentSection ? '#3b82f6' : '#6b7280' }}></div>
+                    <span style={{ fontSize: '0.875rem' }}>Section {index + 1}: {section.title}</span>
                   </div>
                 ))}
               </div>
